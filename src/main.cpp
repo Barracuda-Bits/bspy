@@ -470,13 +470,18 @@ void show_log_window(std::vector<log_entry_t>& logs)
             std::vector<std::string> files;
             static u32 selected_index = 0;
             // Load list of .csv files once when modal is opened
-            if (files.empty()) {
+            if (files.empty())
+            {
                 files = find_files(".log");
             }
 
             if (!files.empty())
             {
                 // Build combo box from file list
+                if (selected_index >= files.size())
+                {
+                    selected_index = 0; // Reset index if out of bounds
+				}
                 const char* preview_value = files[selected_index].c_str();
                 if (ImGui::BeginCombo("##file_combo", preview_value))
                 {
@@ -788,6 +793,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO* io = &ImGui::GetIO(); (void)io;
+    io->IniFilename = "bspy.ini";
     ImGui::StyleColorsDark();
 
     ImGui_ImplWin32_Init(g_HWND);
