@@ -102,21 +102,22 @@ const char* severity_to_string(log_severity_e severity)
 {
     switch (severity)
     {
-    case INFO: return "INFO";
-    case WARN: return "WARN";
-	case FAIL: return "FAIL";
-    case SUCC: return "SUCC";
-    case CRIT: return "CRIT";
-    case DBUG: return "DBUG";
-    case TRCE: return "TRCE";
-    default: return "UNKN";
+        case INFO: return "INFO";
+        case WARN: return "WARN";
+        case FAIL: return "FAIL";
+        case SUCC: return "SUCC";
+        case CRIT: return "CRIT";
+        case DBUG: return "DBUG";
+        case TRCE: return "TRCE";
+        default: return "UNKN";
     }
 }
 //********************************************************************************************
-log_severity_e parse_severity(const char* str) {
+log_severity_e parse_severity(const char* str)
+{
     if (_stricmp(str, "INFO") == 0) return INFO;
     if (_stricmp(str, "WARN") == 0) return WARN;
-	if (_stricmp(str, "FAIL") == 0) return FAIL;
+    if (_stricmp(str, "FAIL") == 0) return FAIL;
     if (_stricmp(str, "SUCC") == 0) return SUCC;
     if (_stricmp(str, "CRIT") == 0) return CRIT;
     if (_stricmp(str, "DBUG") == 0) return DBUG;
@@ -151,7 +152,8 @@ std::vector<std::string> find_files(const char* extension)
     return result;
 }
 //********************************************************************************************
-bool save_logs_to_csv(const char* filename, std::vector<log_entry_t>& logs) {
+bool save_logs_to_csv(const char* filename, std::vector<log_entry_t>& logs)
+{
     FILE* f = fopen(filename, "w");
     if (!f) return false;
 
@@ -171,7 +173,8 @@ bool save_logs_to_csv(const char* filename, std::vector<log_entry_t>& logs) {
     return true;
 }
 //********************************************************************************************
-bool load_logs_from_csv(const char* filename, std::vector<log_entry_t>& logs) {
+bool load_logs_from_csv(const char* filename, std::vector<log_entry_t>& logs)
+{
     FILE* f = fopen(filename, "r");
     if (!f) return false;
 
@@ -787,9 +790,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 
     ImGui_ImplWin32_Init(g_HWND);
     ImGui_ImplOpenGL2_Init();
-
-    time_t tm;
-    time(&tm);
 
     // Main loop
     MSG msg;
