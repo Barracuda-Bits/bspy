@@ -571,19 +571,22 @@ void show_log_window(std::vector<log_entry_t>& logs)
                 filtered_logs.push_back(&log);
             }
         }
-
-        for (int i = 0; i < filtered_logs.size(); ++i)
+        ImGuiListClipper clipper;
+        clipper.Begin((int)log_messages.size());
+        while (clipper.Step())
         {
-            ImGui::TableNextRow();
-
-            time_t tm = logs[i].timestamp;
-            char buffer[26];
-            struct tm* tm_info = localtime(&tm);
-            strftime(buffer, 26, "%Y-%m-%d %H:%M:%S", tm_info);
-
-            ImVec4 text_color;
-            switch (filtered_logs[i]->severity)
+            for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i)
             {
+                ImGui::TableNextRow();
+
+                time_t tm = logs[i].timestamp;
+                char buffer[26];
+                struct tm* tm_info = localtime(&tm);
+                strftime(buffer, 26, "%Y-%m-%d %H:%M:%S", tm_info);
+
+                ImVec4 text_color;
+                switch (filtered_logs[i]->severity)
+                {
                 case INFO:
                 {
                     text_color = { 0.6f, 0.8f, 0.8f, 1.0f };
@@ -598,7 +601,7 @@ void show_log_window(std::vector<log_entry_t>& logs)
                 {
                     text_color = { 1.0f, 0.3f, 0.3f, 1.0f };
                     break;
-			    }
+                }
                 case SUCC:
                 {
                     text_color = { 0.0f, 1.0f, 0.0f, 1.0f };
@@ -624,21 +627,22 @@ void show_log_window(std::vector<log_entry_t>& logs)
                     text_color = { 1.0f, 0.0f, 1.0f, 1.0f };
                     break;
                 }
+                }
+
+                ImGui::TableSetColumnIndex(0);
+                ImGui::TextColored(text_color, "%s", buffer);
+
+                ImGui::TableSetColumnIndex(1);
+                ImGui::TextColored(text_color, "%s", severity_to_string(filtered_logs[i]->severity));
+
+                ImGui::TableSetColumnIndex(2);
+                ImGui::TextColored(text_color, "%s", filtered_logs[i]->origin.c_str());
+
+                ImGui::TableSetColumnIndex(3);
+                ImGui::PushStyleColor(ImGuiCol_Text, text_color);
+                render_line_with_links(filtered_logs[i]->content, text_color);
+                ImGui::PopStyleColor();
             }
-
-            ImGui::TableSetColumnIndex(0);
-            ImGui::TextColored(text_color, "%s", buffer);
-
-            ImGui::TableSetColumnIndex(1);
-            ImGui::TextColored(text_color, "%s", severity_to_string(filtered_logs[i]->severity));
-
-            ImGui::TableSetColumnIndex(2);
-            ImGui::TextColored(text_color, "%s", filtered_logs[i]->origin.c_str());
-
-            ImGui::TableSetColumnIndex(3);
-            ImGui::PushStyleColor(ImGuiCol_Text, text_color);
-			render_line_with_links(filtered_logs[i]->content, text_color);
-            ImGui::PopStyleColor();
         }
 
         if (scroll_refresh && ImGui::GetScrollY() < ImGui::GetScrollMaxY())
@@ -802,7 +806,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
     LARGE_INTEGER freq;
     QueryPerformanceFrequency(&freq);
 
-    float targetFrameSeconds = 1.0 / 60.0;
+    float targetFrameSeconds = 1.0 / 120.0;
 
     MSG msg;
     while (g_Running)
