@@ -368,6 +368,8 @@ void show_log_window(std::vector<log_entry_t>& logs)
         {
             if (ImGui::MenuItem("Start Evenlight"))
             {
+                log_messages.clear();
+
                 // start process
                 PROCESS_INFORMATION pi;
                 memset(&pi, 0, sizeof(pi));
@@ -785,9 +787,7 @@ void cleanup()
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 {
     if (!create_gl_window("bSpy", 1024, 768))
-    {
         return 1;
-    }
 
     // Setup Dear ImGui
     IMGUI_CHECKVERSION();
@@ -799,10 +799,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
     ImGui_ImplWin32_Init(g_HWND);
     ImGui_ImplOpenGL2_Init();
 
-    // Main loop
+    LARGE_INTEGER freq;
+    QueryPerformanceFrequency(&freq);
+
+    float targetFrameSeconds = 1.0 / 60.0;
+
     MSG msg;
     while (g_Running)
     {
+        LARGE_INTEGER frameStart;
+        QueryPerformanceCounter(&frameStart);
+
         while (PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE))
         {
             TranslateMessage(&msg);
@@ -813,7 +820,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
 
-        // Example ImGui window
         show_log_window(log_messages);
 
         ImGui::Render();
@@ -822,6 +828,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
         SwapBuffers(g_HDC);
+
+        LARGE_INTEGER frameEnd;
+        QueryPerformanceCounter(&frameEnd);
+        float elapsedSeconds = (float)(frameEnd.QuadPart - frameStart.QuadPart) / freq.QuadPart;
+        
+        if (elapsedSeconds < targetFrameSeconds)
+        {
+            DWORD sleepMS = DWORD((targetFrameSeconds - elapsedSeconds) * 1000);
+            Sleep(sleepMS);
+        }
     }
 
     cleanup();
