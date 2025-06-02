@@ -717,7 +717,7 @@ bool create_gl_window(const char* title, int width, int height)
     wc.lpfnWndProc = wnd_proc;
     wc.hInstance = GetModuleHandle(NULL);
     wc.lpszClassName = L"BrcdLogger";
-    wc.hIcon = LoadIcon(wc.hInstance, MAKEINTRESOURCE(IDI_ENGINE_ICON));
+    wc.hIcon = LoadIcon(wc.hInstance, MAKEINTRESOURCE(IDI_BSPY_ICON));
     RegisterClass(&wc);
 
     // convert title to wchar_t
