@@ -306,7 +306,9 @@ void render_line_with_links (const std::string& line, ImVec4 text_color)
         std::string link = line.substr(link_start, link_end - link_start);
 
         // Render the link as a button
-        if (ImGui::Button(link.c_str()))
+		std::string link_label = link;
+        link_label.append("##link_button");
+        if (ImGui::Button(link_label.c_str()))
         {
             open_in_browser(link);
         }
