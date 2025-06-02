@@ -1,0 +1,29 @@
+#include "../inc/resource.h"
+#include "../../utils/inc/version.h"
+
+IDI_BSPY_ICON ICON "appicon.ico"
+
+1 VERSIONINFO
+FILEVERSION		1, BE_GIT_VERSION_MAJOR, BE_GIT_VERSION_MINOR, BE_GIT_VERSION_PATCH
+PRODUCTVERSION	1, BE_GIT_VERSION_MAJOR, BE_GIT_VERSION_MINOR, BE_GIT_VERSION_PATCH
+BEGIN
+	BLOCK "StringFileInfo"
+	BEGIN
+		BLOCK "040904E4"
+		BEGIN
+			VALUE "CompanyName",		BE_AUTHOR
+			VALUE "FileDescription",	BE_ENGINE_NAME " Logger"
+			VALUE "FileVersion",		"1." BE_GIT_VERSION
+			VALUE "InternalName",		"bspy.exe"
+			VALUE "LegalCopyright",		BE_AUTHOR
+			VALUE "OriginalFilename",	"bspy.exe"
+			VALUE "ProductName",		"bSpy"
+			VALUE "ProductVersion",		"1." BE_GIT_VERSION
+		END
+	END
+	BLOCK "VarFileInfo"
+		BEGIN
+		// Translation Values: German / U.S. English
+		VALUE "Translation", 0x407, 1252, 0x409, 1252
+	END
+END
