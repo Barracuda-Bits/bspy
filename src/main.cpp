@@ -572,7 +572,7 @@ void show_log_window(std::vector<log_entry_t>& logs)
             }
         }
         ImGuiListClipper clipper;
-        clipper.Begin((int)log_messages.size());
+        clipper.Begin((int)filtered_logs.size());
         while (clipper.Step())
         {
             for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i)
