@@ -31,6 +31,9 @@
 #include "backends/imgui_impl_win32.h"
 #include "backends/imgui_impl_opengl2.h"
 #include "resource.h"
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+#include "version.h"
 
 typedef unsigned char byte;
 
@@ -75,6 +78,10 @@ static bool auto_scroll = false;
 static bool scroll_refresh = false;
 static HANDLE evenlight_handle;
 static char filter_buf[128];
+static GLuint textureID;
+static i32 textureWidth = 0;
+static i32 textureHeight = 0;
+static bool show_about = false;
 //********************************************************************************************
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(
     HWND hWnd,
@@ -286,7 +293,7 @@ void render_line_with_links (const std::string& line, ImVec4 text_color)
         if (link_start == std::string::npos)
         {
             std::string normal_text = line.substr(pos);
-            ImGui::TextWrapped("%s", normal_text.c_str());
+            ImGui::TextColored(text_color, "%s", normal_text.c_str());
             break;
         }
 
@@ -294,7 +301,7 @@ void render_line_with_links (const std::string& line, ImVec4 text_color)
         if (link_start > pos)
         {
             std::string normal_text = line.substr(pos, link_start - pos);
-            ImGui::TextWrapped("%s", normal_text.c_str());
+            ImGui::TextColored(text_color, "%s", normal_text.c_str());
             ImGui::SameLine(0.0f, 0.0f);
         }
 
@@ -323,6 +330,44 @@ void render_line_with_links (const std::string& line, ImVec4 text_color)
     }
 
     ImGui::PopStyleColor();
+}
+//********************************************************************************************
+void show_about_window(void)
+{
+    // Trigger only once when opening
+    if (show_about) {
+        ImGui::OpenPopup("About");
+        show_about = false; // Reset flag
+    }
+
+    // Must be in the same frame as OpenPopup
+    if (ImGui::BeginPopupModal("About", NULL,
+        ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse))
+    {
+        float indent = 20.0f;
+        float available = ImGui::GetContentRegionAvail().x - indent;
+        float ratio = available / textureWidth;
+
+        ImGui::SetWindowFontScale(1.2f);
+        ImGui::Text(BE_APPLICATION_NAME " - Logging Tool");
+        ImGui::SetWindowFontScale(1.0f);
+
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + indent);
+        ImGui::Image((ImTextureID)(intptr_t)textureID, ImVec2(available, textureHeight * ratio));
+
+        ImGui::Text("Version: " BE_GIT_VERSION);
+        ImGui::Text("Build date: " BE_BUILD_DATE "T" BE_BUILD_TIME "Z");
+        ImGui::Text("A tool for monitoring and logging " BE_ENGINE_NAME " events.");
+        ImGui::Text("Developed by " BE_AUTHOR " " BE_CPY_NOTE ".");
+
+        if (ImGui::Button("Visit website"))
+            open_in_browser("https://github.com/Barracuda-Bits/");
+
+        if (ImGui::Button("Close"))
+            ImGui::CloseCurrentPopup();
+
+        ImGui::EndPopup();
+    }
 }
 //********************************************************************************************
 void show_log_window(std::vector<log_entry_t>& logs)
@@ -408,6 +453,10 @@ void show_log_window(std::vector<log_entry_t>& logs)
             }
             ImGui::EndMenu();
         }
+        if (ImGui::Button("About"))
+        {
+            show_about = !show_about;
+		}
         if (ImGui::Button("Clear"))
         {
             log_messages.clear();
@@ -541,7 +590,7 @@ void show_log_window(std::vector<log_entry_t>& logs)
 
     // Table for logs
     ImGui::BeginChild("LogTableRegion", ImVec2(0, 0), true, ImGuiWindowFlags_AlwaysVerticalScrollbar);
-    if (ImGui::BeginTable("LogTable", 4, ImGuiTableFlags_Resizable | ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders))
+    if (ImGui::BeginTable("LogTable", 4, ImGuiTableFlags_Resizable | ImGuiTableFlags_RowBg))
     {
         ImGui::TableSetupColumn("Datetime");
         ImGui::TableSetupColumn("Severity");
@@ -581,8 +630,9 @@ void show_log_window(std::vector<log_entry_t>& logs)
 
                 time_t tm = logs[i].timestamp;
                 char buffer[26];
-                struct tm* tm_info = localtime(&tm);
-                strftime(buffer, 26, "%Y-%m-%d %H:%M:%S", tm_info);
+                struct tm tm_info;
+                localtime_s(&tm_info, &tm);
+                strftime(buffer, 26, "%Y-%m-%d %H:%M:%S", &tm_info);
 
                 ImVec4 text_color;
                 switch (filtered_logs[i]->severity)
@@ -639,9 +689,7 @@ void show_log_window(std::vector<log_entry_t>& logs)
                 ImGui::TextColored(text_color, "%s", filtered_logs[i]->origin.c_str());
 
                 ImGui::TableSetColumnIndex(3);
-                ImGui::PushStyleColor(ImGuiCol_Text, text_color);
                 render_line_with_links(filtered_logs[i]->content, text_color);
-                ImGui::PopStyleColor();
             }
         }
 
@@ -655,6 +703,9 @@ void show_log_window(std::vector<log_entry_t>& logs)
     }
     ImGui::EndChild();
     ImGui::End(); // End main window
+
+	// Show About window if requested
+    show_about_window();
 }
 //********************************************************************************************
 LRESULT CALLBACK wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -792,6 +843,55 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 {
     if (!create_gl_window("bSpy", 1024, 768))
         return 1;
+
+    glEnable(GL_TEXTURE_2D);
+
+    // Generate and bind texture
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_2D, textureID);
+
+    // Set texture parameters (optional but recommended)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+
+    HRSRC img_handle = FindResource(
+        GetModuleHandle(NULL),
+		MAKEINTRESOURCE(IDB_BSPY_LOGO),
+        RT_RCDATA
+    );
+    DWORD res_size = SizeofResource(
+        hInstance,
+        img_handle
+    );
+    HGLOBAL handle_res_data = LoadResource(
+        hInstance,
+        img_handle
+    );
+    void* image_ptr = LockResource(handle_res_data);
+
+	int channels = 0;
+    stbi_uc* bitmap = stbi_load_from_memory(
+        (const stbi_uc*)image_ptr,
+        res_size,
+        &textureWidth,
+        &textureHeight,
+        &channels,
+        4
+    );
+
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RGBA,
+        textureWidth,
+        textureHeight,
+        0,
+        GL_RGBA,
+        GL_UNSIGNED_BYTE,
+        bitmap
+    );
 
     // Setup Dear ImGui
     IMGUI_CHECKVERSION();

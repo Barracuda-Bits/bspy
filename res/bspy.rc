@@ -1,7 +1,8 @@
 #include "../inc/resource.h"
-#include "../../utils/inc/version.h"
+#include "../inc/version.h"
 
 IDI_BSPY_ICON ICON "appicon.ico"
+IDB_BSPY_LOGO RCDATA "bb_logo_bw.png"
 
 1 VERSIONINFO
 FILEVERSION		1, BE_GIT_VERSION_MAJOR, BE_GIT_VERSION_MINOR, BE_GIT_VERSION_PATCH
