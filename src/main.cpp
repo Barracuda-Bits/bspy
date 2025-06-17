@@ -90,6 +90,110 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(
     LPARAM lParam
 );
 //********************************************************************************************
+const char* severity_to_string(log_severity_e severity)
+{
+    switch (severity)
+    {
+    case INFO: return "INFO";
+    case WARN: return "WARN";
+    case FAIL: return "FAIL";
+    case SUCC: return "SUCC";
+    case CRIT: return "CRIT";
+    case DBUG: return "DBUG";
+    case TRCE: return "TRCE";
+    default: return "UNKN";
+    }
+}
+//********************************************************************************************
+void split_and_add(
+    const std::string& input,
+    std::vector<std::string>& include_filters,
+    std::vector<std::string>& exclude_filters)
+{
+    size_t start = 0;
+    while (start < input.length())
+    {
+        size_t end = input.find(',', start);
+        if (end == std::string::npos)
+            end = input.length();
+
+        std::string token = input.substr(start, end - start);
+        if (!token.empty())
+        {
+            if (token[0] == '!' && token.length() > 1)
+                exclude_filters.emplace_back(token.begin() + 1, token.end());
+            else if (token[0] != '!')
+                include_filters.emplace_back(input.begin() + start, input.begin() + end);
+        }
+
+        start = end + 1;
+    }
+}
+//********************************************************************************************
+void apply_filters(
+    const std::string& filter_buf,
+    const std::vector<log_entry_t>& logs,
+    std::vector<log_entry_t*>& filtered_logs)
+{
+    std::vector<std::string> include_filters;
+    std::vector<std::string> exclude_filters;
+
+    include_filters.reserve(8);
+    exclude_filters.reserve(8);
+
+    split_and_add(filter_buf, include_filters, exclude_filters);
+
+    filtered_logs.clear();
+    filtered_logs.reserve(logs.size());
+
+    const bool has_includes = !include_filters.empty();
+    const bool has_excludes = !exclude_filters.empty();
+
+    for (const auto& log : logs)
+    {
+        const std::string& content = log.content;
+        const std::string& origin = log.origin;
+        const char* severity_str = severity_to_string(log.severity);
+
+        bool include = !has_includes;
+
+        if (has_includes)
+        {
+            for (size_t i = 0; i < include_filters.size(); ++i)
+            {
+                const std::string& inc = include_filters[i];
+                if (content.find(inc) != std::string::npos ||
+                    origin.find(inc) != std::string::npos ||
+                    std::strstr(severity_str, inc.c_str()))
+                {
+                    include = true;
+                    break;
+                }
+            }
+        }
+
+        if (include && has_excludes)
+        {
+            for (size_t i = 0; i < exclude_filters.size(); ++i)
+            {
+                const std::string& exc = exclude_filters[i];
+                if (content.find(exc) != std::string::npos ||
+                    origin.find(exc) != std::string::npos ||
+                    std::strstr(severity_str, exc.c_str()))
+                {
+                    include = false;
+                    break;
+                }
+            }
+        }
+
+        if (include)
+        {
+            filtered_logs.push_back(const_cast<log_entry_t*>(&log));
+        }
+    }
+}
+//********************************************************************************************
 void open_in_browser(const std::string& url)
 {
 #if defined(_WIN32)
@@ -103,21 +207,6 @@ void open_in_browser(const std::string& url)
 #else
 #warning Unsupported platform
 #endif
-}
-//********************************************************************************************
-const char* severity_to_string(log_severity_e severity)
-{
-    switch (severity)
-    {
-        case INFO: return "INFO";
-        case WARN: return "WARN";
-        case FAIL: return "FAIL";
-        case SUCC: return "SUCC";
-        case CRIT: return "CRIT";
-        case DBUG: return "DBUG";
-        case TRCE: return "TRCE";
-        default: return "UNKN";
-    }
 }
 //********************************************************************************************
 log_severity_e parse_severity(const char* str)
@@ -358,7 +447,7 @@ void show_about_window(void)
         ImGui::Text("Version: " BE_GIT_VERSION);
         ImGui::Text("Build date: " BE_BUILD_DATE "T" BE_BUILD_TIME "Z");
         ImGui::Text("A tool for monitoring and logging " BE_ENGINE_NAME " events.");
-        ImGui::Text("Developed by " BE_AUTHOR " " BE_CPY_NOTE ".");
+        ImGui::Text("Developed by " BE_AUTHOR " " BE_COPYRIGHT ".");
 
         if (ImGui::Button("Visit website"))
             open_in_browser("https://github.com/Barracuda-Bits/");
@@ -536,7 +625,7 @@ void show_log_window(std::vector<log_entry_t>& logs)
                 const char* preview_value = files[selected_index].c_str();
                 if (ImGui::BeginCombo("##file_combo", preview_value))
                 {
-                    for (int i = 0; i < (int)files.size(); ++i)
+                    for (u32 i = 0; i < (int)files.size(); ++i)
                     {
                         bool is_selected = (selected_index == i);
                         if (ImGui::Selectable(files[i].c_str(), is_selected))
@@ -601,25 +690,8 @@ void show_log_window(std::vector<log_entry_t>& logs)
         std::vector<log_entry_t*> filtered_logs;
         filtered_logs.clear();
 
-        if (strlen(filter_buf) > 0)
-        {
-            for (auto& log : logs)
-            {
-                if (strstr(log.content.c_str(), filter_buf) ||
-                    strstr(severity_to_string(log.severity), filter_buf) ||
-                    strstr(log.origin.c_str(), filter_buf))
-                {
-                    filtered_logs.push_back(&log);
-                }
-            }
-        }
-        else
-        {
-            for (auto& log : logs)
-            {
-                filtered_logs.push_back(&log);
-            }
-        }
+        apply_filters(filter_buf, logs, filtered_logs);
+
         ImGuiListClipper clipper;
         clipper.Begin((int)filtered_logs.size());
         while (clipper.Step())
@@ -639,7 +711,7 @@ void show_log_window(std::vector<log_entry_t>& logs)
                 {
                 case INFO:
                 {
-                    text_color = { 0.6f, 0.8f, 0.8f, 1.0f };
+                    text_color = { 0.4f, 0.6f, 0.7f, 1.0f };
                     break;
                 }
                 case WARN:
